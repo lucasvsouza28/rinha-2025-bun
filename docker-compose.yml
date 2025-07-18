@@ -1,0 +1,24 @@
+# docker-compose.yml
+version: '3.9'
+
+services:
+  app:
+    image: "rinha-bun"
+    ports: ["3000:3000"]
+    environment:
+      - PORT=3000
+      - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
+      - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor-fallback:8080
+    networks:
+      - rinha-bun
+      - payment-processor
+    build:
+      context: .
+      dockerfile: Dockerfile
+      
+networks:
+  rinha-bun:
+    driver: bridge
+  payment-processor:
+    driver: bridge
+    external: true
