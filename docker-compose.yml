@@ -1,21 +1,49 @@
 services:
+  redis:
+    image: "redis:latest"
+    ports:
+      - "6379:6379"
+    networks:
+      - rinha-bun
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 30s
+      retries: 5
+    
   app:
-    image: "rinha-bun"
+    #image: "rinha-bun"
+    image: "oven/bun"
     ports: ["3000:3000"]
-    environment:
-      - PORT=3000
-      - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
-      - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor-fallback:8080
+    entrypoint: []
+    #execute bun install before we start the dev server in watch mode -- watch mode don't work with wsl
+    #command: "/bin/sh -c 'bun install && bun run --watch index.ts'"
+    command: "/bin/sh -c 'bun run --watch index.ts'"
+    # setup a host mounted volume to sync changes to the container
+    volumes: ["./:/home/bun/app"]
+    restart: always
+    env_file:
+      - .env
     networks:
       - rinha-bun
       - payment-processor
+    depends_on:
+      redis:
+        condition: service_healthy
     build:
       context: .
       dockerfile: Dockerfile
-      
+
 networks:
   rinha-bun:
     driver: bridge
   payment-processor:
     driver: bridge
     external: true
+
+volumes:
+  redis_data:
+    driver: local

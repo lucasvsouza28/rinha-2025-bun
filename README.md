@@ -5,7 +5,7 @@ Implementação da [rinha de backend 2025](https://github.com/zanfranceschi/rinh
 ## TODO
 
 - [x] setup elysia, dockerfile, docker-compose
-- [ ] POST /payments
+- [x] POST /payments
 - [ ] GET /payments-summary
 - [ ] garantir que os testes do repo oficial passem
 - [ ] submeter no repo oficial
