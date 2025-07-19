@@ -9,9 +9,3 @@ Implementação da [rinha de backend 2025](https://github.com/zanfranceschi/rinh
 - [x] GET /payments-summary
 - [x] garantir que os testes do repo oficial passem
 - [ ] submeter no repo oficial
-
-## stack
-- bun
-- elysia
-- redis
-- bull
