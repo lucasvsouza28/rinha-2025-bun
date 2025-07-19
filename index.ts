@@ -1,11 +1,14 @@
 import Elysia from 'elysia';
 import health from '@routes/health.ts';
 import payments from '@routes/payments.ts';
+import paymentsSummary from '@routes/payments-summary.ts';
+import '@queues/payment-processing';
 
 new Elysia()
   .get('/', () => 'rinha-2025-bun is running!')
   .use(health)
   .use(payments)
+  .use(paymentsSummary)
   .listen({
     port: process.env.PORT || 3000,
   }, ({ port }) => console.log(`Server is listening on port ${port}`));
