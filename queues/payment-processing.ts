@@ -61,10 +61,6 @@ async function callProcessor(processor: PaymentProcessorType, payment: PaymentRe
   if (!response.ok) {
     console.error(`error processing payment via ${processor} processor: ${response.status} ${response.statusText}`);
 
-    if (response.status === 422) {
-      redis.set('422', JSON.stringify(payment));
-    }
-    
     return { success: false, code: response.status };
   }
 
