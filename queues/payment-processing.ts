@@ -12,35 +12,36 @@ type PaymentRequest = {
 const paymentsQueue = new Queue<PaymentRequest>(PAYMENTS_QUEUE, process.env.REDIS_URL || '');
 
 paymentsQueue.process(async (job, done) => {
-    const { amount, correlationId, requestedAt } = job.data;
+  const { amount, correlationId, requestedAt } = job.data;
 
-    console.log(`Processing payment: ${correlationId}`);
+  console.log(`Processing payment: ${correlationId}`);
 
-    let processor: PaymentProcessorType = 'default';
-    let defaultSucceeded = false, fallbackSuccedded = false;
-    defaultSucceeded = await callProcessor('default', job.data);
-    
-    if (!defaultSucceeded) {
-      fallbackSuccedded = await callProcessor('fallback', job.data);
-      processor = 'fallback';
-    }
+  let processor: PaymentProcessorType = 'default';
+  let processorResponse;
+  processorResponse = await callProcessor('default', job.data);
 
-    if (!defaultSucceeded && !fallbackSuccedded) {
-      // re-queue
-      await paymentsQueue.add(job.data);
-      done();
-      return;
-    }
+  if (!processorResponse.success) {
+    processorResponse = await callProcessor('fallback', job.data);
+    processor = 'fallback';
+  }
 
+  if (processorResponse.success) {
     const ok = await redis.set(`payments:${processor}:${correlationId}`, JSON.stringify({
-        amount,
-        requestedAt,
-        status: 'processed',
-        processor,
+      amount,
+      requestedAt,
+      status: 'processed',
+      processor,
     }));
     
     console.log(`Payment processed via ${processor}: ${correlationId}`, ok);
     done();
+    return;
+  }
+
+  // re-queue
+  console.log(`unable to proccess payment ${correlationId}. Sending back to queue`);
+  await paymentsQueue.add(job.data);
+  done();
 });
 
 async function callProcessor(processor: PaymentProcessorType, payment: PaymentRequest){
@@ -58,14 +59,19 @@ async function callProcessor(processor: PaymentProcessorType, payment: PaymentRe
   });
   
   if (!response.ok) {
-    console.error(`error processing payment via ${processor} processor: ${response.statusText}`);
-    return false;
+    console.error(`error processing payment via ${processor} processor: ${response.status} ${response.statusText}`);
+
+    if (response.status === 422) {
+      redis.set('422', JSON.stringify(payment));
+    }
+    
+    return { success: false, code: response.status };
   }
 
   const json = await response.json();
   console.log(`processor response: `, json);
 
-  return true;
+  return { success: true, code: response.status };
 }
 
 export default paymentsQueue;
