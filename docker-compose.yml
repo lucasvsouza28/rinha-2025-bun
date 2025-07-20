@@ -17,7 +17,9 @@ services:
   app:
     #image: "rinha-bun"
     image: "oven/bun"
-    ports: ["3000:3000"]
+    ports:
+      #- "3000:3000"
+      - "9999:9999"
     entrypoint: []
     #execute bun install before we start the dev server in watch mode -- watch mode don't work with wsl
     #command: "/bin/sh -c 'bun install && bun run --watch index.ts'"
