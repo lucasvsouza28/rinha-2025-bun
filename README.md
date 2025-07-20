@@ -8,4 +8,6 @@ Implementação da [rinha de backend 2025](https://github.com/zanfranceschi/rinh
 - [x] POST /payments
 - [x] GET /payments-summary
 - [x] garantir que os testes do repo oficial passem
+- [ ] enviar docker image para docker hub
+- [ ] montar docker-compose de prod
 - [ ] submeter no repo oficial
