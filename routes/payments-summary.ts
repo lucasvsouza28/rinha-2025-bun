@@ -28,7 +28,7 @@ const paymentsSummary = new Elysia()
             const isDefault = key.startsWith('payments:default:');
             const store = isDefault ? summary['default'] : summary['fallback'];
 
-            if ((!from || payment.payment >= from) || (!to || payment.payment <= to)) {
+            if ((!from || payment.requestedAt >= from) || (!to || payment.requestedAt <= to)) {
               store.totalRequests += 1;
               store.totalAmount += payment.amount || 0;
             }
