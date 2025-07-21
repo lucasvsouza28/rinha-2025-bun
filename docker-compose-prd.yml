@@ -44,8 +44,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 70MB
+          cpus: '0.4'
+          memory: 85MB
 
   api-2:
     <<: *api_template
@@ -55,8 +55,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 70MB
+          cpus: '0.4'
+          memory: 85MB
   
   nginx:
     image: nginx:alpine
@@ -73,7 +73,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.1'
+          cpus: '0.4'
           memory: "100MB"
 
 networks:
