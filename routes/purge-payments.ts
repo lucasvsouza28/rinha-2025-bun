@@ -5,11 +5,11 @@ import PaymentsQueue from "@queues/payment-processing";
 const purgePayments = new Elysia()
   .get('/purge-payments', async () => {
     const keys = await redis.keys(`payments:*`);
-    Promise.all(keys.map(k => {
+    await Promise.all(keys.map(k => {
       redis.del(k)
     }));
     
-    PaymentsQueue.empty();
+    await PaymentsQueue.empty();
   });
 
 export default purgePayments;

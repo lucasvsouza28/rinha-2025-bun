@@ -6,11 +6,12 @@ import purgePayments from '@routes/purge-payments';
 import '@queues/payment-processing';
 
 new Elysia()
-  .get('/', () => 'rinha-2025-bun is running!')
+  .get('/', () => 'rinha-bun is running')
   .use(health)
   .use(payments)
   .use(paymentsSummary)
   .use(purgePayments)
   .listen({
     port: process.env.PORT || 3000,
+    idleTimeout: 255,
   }, ({ port }) => console.log(`Server is listening on port ${port}`));

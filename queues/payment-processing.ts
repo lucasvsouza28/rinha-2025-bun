@@ -17,8 +17,10 @@ paymentsQueue.process(async (job, done) => {
   console.log(`Processing payment: ${correlationId}`);
 
   let processor: PaymentProcessorType = 'default';
-  let processorResponse;
-  processorResponse = await callProcessor('default', job.data);
+  let processorResponse = await callProcessor('default', job.data);
+
+  // if default processor returns 200 with failing + minResponseTime, delay the job
+  // if default processor returns 500, try fallback
 
   if (!processorResponse.success) {
     processorResponse = await callProcessor('fallback', job.data);
@@ -32,7 +34,7 @@ paymentsQueue.process(async (job, done) => {
       status: 'processed',
       processor,
     }));
-    
+
     console.log(`Payment processed via ${processor}: ${correlationId}`, ok);
     done();
     return;
@@ -44,7 +46,7 @@ paymentsQueue.process(async (job, done) => {
   done();
 });
 
-async function callProcessor(processor: PaymentProcessorType, payment: PaymentRequest){
+async function callProcessor(processor: PaymentProcessorType, payment: PaymentRequest) {
   const url = processor == 'default' ? process.env.PAYMENT_PROCESSOR_DEFAULT_URL : process.env.PAYMENT_PROCESSOR_FALLBACK_URL;
 
   if (!url) throw new Error('processor url not set');
@@ -57,7 +59,7 @@ async function callProcessor(processor: PaymentProcessorType, payment: PaymentRe
     },
     body: JSON.stringify(payment)
   });
-  
+
   if (!response.ok) {
     console.error(`error processing payment via ${processor} processor: ${response.status} ${response.statusText}`);
 
