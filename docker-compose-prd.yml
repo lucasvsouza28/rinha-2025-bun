@@ -30,33 +30,33 @@ services:
       interval: 1s
       timeout: 30s
       retries: 5
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '0.3'
-    #       memory: 80MB
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 80MB
     
   api-1:
     <<: *api_template
     hostname: api-1
     ports:
       - "9998:3000"
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '0.5'
-    #       memory: 70MB
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 70MB
 
   api-2:
     <<: *api_template
     hostname: api-2
     ports:
       - "9997:3000"
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '0.5'
-    #       memory: 70MB
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 70MB
   
   nginx:
     image: nginx:alpine
@@ -70,11 +70,11 @@ services:
       - api-2
     networks:
       - rinha-backend
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: '0.1'
-    #       memory: "100MB"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: "100MB"
 
 networks:
   rinha-backend:
