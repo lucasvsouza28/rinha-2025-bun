@@ -3,10 +3,7 @@ import PaymentsQueue from "@queues/payment-processing";
 
 const payments = new Elysia()
     .post('/payments', ({ body }) => {
-        const { amount } = body;
-
-        // generate a unique correlation ID
-        const correlationId = crypto.randomUUID();
+        const { amount, correlationId } = body;
     
         // get the current timestamp
         const requestedAt = new Date();
@@ -24,6 +21,7 @@ const payments = new Elysia()
     }, {
         body: t.Object({
             amount: t.Number({ description: 'Amount to be processed' }),
+            correlationId: t.String({ default: 'Payment correlation id' })
         }),
     });
 
