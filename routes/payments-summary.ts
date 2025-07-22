@@ -45,10 +45,8 @@ const paymentsSummary = new Elysia().get(
         });
 
         if (
-          !fromDate ||
-          payment.requestedAt >= fromDate ||
-          !toDate ||
-          payment.requestedAt <= toDate
+          (!fromDate || payment.requestedAt >= fromDate) &&
+          (!toDate || payment.requestedAt <= toDate)
         ) {
           console.log('date in range')
           store.totalRequests += 1;
