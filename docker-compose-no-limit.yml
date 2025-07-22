@@ -1,0 +1,67 @@
+x-api_template: &api_template
+  image: "lucasvsouza28/rinha-bun"
+  ports:
+    - "3000:3000"
+  restart: always
+  environment:
+    - PORT=3000
+    - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
+    - PAYMENT_PROCESSOR_FALLBACK_URL=http://payment-processor-fallback:8080
+    - REDIS_URL=redis://redis:6379
+  networks:
+    - rinha-backend
+    - payment-processor
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: "redis:latest"
+    ports:
+      - "6379:6379"
+    networks:
+      - rinha-backend
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 30s
+      retries: 5
+        
+  api-1:
+    <<: *api_template
+    hostname: api-1
+    ports:
+      - "9998:3000"
+    
+  api-2:
+    <<: *api_template
+    hostname: api-2
+    ports:
+      - "9997:3000"
+      
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-lb
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9999:80"
+    depends_on:
+      - api-1
+      - api-2
+    networks:
+      - rinha-backend
+    
+networks:
+  rinha-backend:
+    driver: bridge
+  payment-processor:
+    external: true
+
+volumes:
+  redis_data:
+    driver: local
