@@ -1,6 +1,7 @@
 import { redis } from "bun";
 import Queue from 'bull';
 import { PAYMENTS_QUEUE } from '@queues/constants';
+import { cache } from "react";
 
 type PaymentProcessorType = 'default' | 'fallback';
 type PaymentRequest = {
@@ -17,12 +18,16 @@ paymentsQueue.process(async (job, done) => {
   console.log(`Processing payment: ${correlationId}`);
 
   let processor: PaymentProcessorType = 'default';
-  let processorResponse = await callProcessor('default', job.data);
+  let processorResponse: { success: boolean; code: number; } | undefined;
+  const defaultProcessorHealth = await getProcessorHealth('default');
 
-  // if default processor returns 200 with failing + minResponseTime, delay the job
-  // if default processor returns 500, try fallback
+  if (!defaultProcessorHealth.failing) {
+    processorResponse = await callProcessor('default', job.data);
+  }
 
-  if (!processorResponse.success) {
+  const fallbackProcessorHealth = await getProcessorHealth('fallback');
+
+  if (!processorResponse.success && !fallbackProcessorHealth.failing) {
     processorResponse = await callProcessor('fallback', job.data);
     processor = 'fallback';
   }
@@ -45,6 +50,42 @@ paymentsQueue.process(async (job, done) => {
   await paymentsQueue.add(job.data);
   done();
 });
+
+type PaymentProcessorHealth = {
+  failing: boolean,
+  minResponseTime: number,
+}
+
+async function getProcessorHealth(processor: PaymentProcessorType): PaymentProcessorHealth {
+  console.log(`checking processor health: ${processor}`);
+  const key = 'payment-processor-health:' + processor;
+  const hasCache = await redis.exists(key);
+
+  if (hasCache) {
+    const cached = await redis.get(key);
+    return JSON.parse(cached) as PaymentProcessorHealth;
+  }
+
+  const url = processor == 'default' ? process.env.PAYMENT_PROCESSOR_DEFAULT_URL : process.env.PAYMENT_PROCESSOR_FALLBACK_URL;
+  const response = await fetch({
+    url: `${url}/payments/service-health`,
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!response.ok) {
+    console.error(`error checking processor's health`)
+    return {
+      failing: true,
+      minResponseTime: 0
+    };
+  }
+
+  const FIVE_MIN_IN_SECONDS = 1000 * 60 * 5;
+  await redis.set(key, JSON.stringify(await response.json()))
+  await redis.expire(FIVE_MIN_IN_SECONDS);
+}
 
 async function callProcessor(processor: PaymentProcessorType, payment: PaymentRequest) {
   const url = processor == 'default' ? process.env.PAYMENT_PROCESSOR_DEFAULT_URL : process.env.PAYMENT_PROCESSOR_FALLBACK_URL;
