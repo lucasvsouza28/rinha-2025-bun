@@ -6,7 +6,7 @@ const payments = new Elysia()
         const { amount, correlationId } = body;
     
         // get the current timestamp
-        const requestedAt = new Date().getUTCDate();
+        const requestedAt = new Date();
     
         console.log('Enqueuing payment', { amount, correlationId, requestedAt });
         
