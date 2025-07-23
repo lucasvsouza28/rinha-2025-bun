@@ -30,6 +30,7 @@
     "paths": {
       "@routes/*": ["./routes/*"],
       "@queues/*": ["queues/*"],
+      "@repositories/*": ["./repositories/*"]
     }
   }
 }

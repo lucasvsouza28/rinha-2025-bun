@@ -1,15 +1,14 @@
-import { redis } from 'bun';
 import { Elysia } from 'elysia';
 import PaymentsQueue from "@queues/payment-processing";
+import { PaymentRedisRepository, PaymentSqlRepository } from '@repositories/payments';
 
 const purgePayments = new Elysia()
   .get('/purge-payments', async () => {
-    const keys = await redis.keys(`payments:*`);
-    await Promise.all(keys.map(k => {
-      redis.del(k)
-    }));
+    //const repo = new PaymentRedisRepository();
+    const repo = new PaymentSqlRepository();
+    repo.purgePayments();
     
-    await PaymentsQueue.empty();
+    await PaymentsQueue.clean(1);
   });
 
 export default purgePayments;
