@@ -1,7 +1,7 @@
 import { redis } from "bun";
 import Queue from "bull";
 import { PAYMENTS_QUEUE } from "@queues/constants";
-import { PaymentRedisRepository, PaymentSqlRepository } from "@repositories/payments";
+import { PaymentSqlRepository } from "@repositories/payments";
 
 type PaymentProcessorType = "default" | "fallback";
 type PaymentRequest = {
@@ -24,43 +24,72 @@ const config: PaymentProcessorConfig = {
     url: process.env.PAYMENT_PROCESSOR_FALLBACK_URL || "not-set",
   },
 };
+
 const paymentsQueue = new Queue<PaymentRequest>(PAYMENTS_QUEUE, process.env.REDIS_URL || "");
 
-paymentsQueue.process(async (job, done) => {
-  const { correlation_id } = job.data;
+export function initializeQueue() {
+  paymentsQueue.process(async (job, done) => {
+    const { correlation_id } = job.data;
 
-  console.log(`Processing payment: ${correlation_id}`);
+    try {
+      console.log(`Processing payment: ${correlation_id}`);
 
-  let processor: PaymentProcessorType = "default";
-  let processorResponse: { success: boolean; code: number } = { success: false, code: 0 };
-  const defaultProcessorHealth = await getProcessorHealth("default");
+      let processor: PaymentProcessorType = "default";
+      let processorResponse: { success: boolean; code: number } = { success: false, code: 0 };
+      const defaultProcessorHealth = await getProcessorHealth("default");
 
-  if (!defaultProcessorHealth.failing) {
-    processorResponse = await callProcessor("default", job.data);
-  }
+      if (!defaultProcessorHealth.failing) {
+        processorResponse = await callProcessor("default", job.data);
 
-  const fallbackProcessorHealth = await getProcessorHealth("fallback");
+        if (processorResponse.success) {
+          await persistPayment(job.data, processor);
+          done();
+          return;
+        }
 
-  if (!processorResponse.success && !fallbackProcessorHealth.failing) {
-    processorResponse = await callProcessor("fallback", job.data);
-    processor = "fallback";
-  }
+        if (processorResponse.code === 422) {
+          console.log("payment already exists");
+          done();
+          return;
+        }
+      }
 
-  if (processorResponse.success) {    
-    // const repo = new PaymentRedisRepository();
-    const repo = new PaymentSqlRepository();
-    await repo.persistPayment({ ...job.data, processor })
+      const fallbackProcessorHealth = await getProcessorHealth("fallback");
 
-    console.log(`Payment processed via ${processor}: ${correlation_id}`);
-    done();
-    return;
-  }
+      if (!fallbackProcessorHealth.failing) {
+        processorResponse = await callProcessor("fallback", job.data);
+        processor = "fallback";
 
-  // re-queue
-  console.log(`unable to proccess payment ${correlation_id}. Sending back to queue`);
-  await paymentsQueue.add(job.data);
-  done();
-});
+        if (processorResponse.success) {
+          await persistPayment(job.data, processor);
+          done();
+          return;
+        }
+
+        if (processorResponse.code === 422) {
+          console.log("payment already exists");
+          done();
+          return;
+        }
+      }
+
+      // re-queue
+      console.log(`unable to proccess payment ${correlation_id}. Sending back to queue`);
+      await paymentsQueue.add(job.data);
+    } catch (err) {
+      console.error(err, `error while processing payment ${correlation_id}`);
+    } finally {
+      done();
+    }
+  });
+}
+
+async function persistPayment(payment: PaymentRequest, processor: PaymentProcessorType) {
+  const repo = new PaymentSqlRepository();
+  await repo.persistPayment({ ...payment, processor });
+
+  console.log(`Payment processed via ${processor}: ${payment.correlation_id}`);
+}
 
 type PaymentProcessorHealth = {
   failing: boolean;
@@ -72,9 +101,10 @@ async function getProcessorHealth(
 ): Promise<PaymentProcessorHealth> {
   console.log(`checking processor health: ${processor}`);
   const key = "payment-processor-health:" + processor;
-  const cached = await redis.get(key) || '';
+  const cached = (await redis.get(key)) || "";
 
   if (cached) {
+    console.log("returning from cache: ", cached);
     return JSON.parse(cached) as PaymentProcessorHealth;
   }
 
@@ -87,7 +117,7 @@ async function getProcessorHealth(
   });
 
   if (!response.ok) {
-    console.error(`error checking processor's health`);
+    console.error(`error checking processor's health: `, response.statusText);
     return {
       failing: true,
       minResponseTime: 0,
@@ -98,6 +128,7 @@ async function getProcessorHealth(
   const json = await response.text();
   await redis.set(key, json);
   await redis.expire(key, FIVE_MIN_IN_SECONDS);
+  console.log(`processor's ${processor} health:`, json);
 
   return JSON.parse(json) as PaymentProcessorHealth;
 }
@@ -112,7 +143,7 @@ async function callProcessor(processor: PaymentProcessorType, payment: PaymentRe
     body: JSON.stringify({
       correlationId: payment.correlation_id,
       amount: payment.amount,
-      requestedAt: payment.requested_at
+      requestedAt: payment.requested_at,
     }),
   });
 
