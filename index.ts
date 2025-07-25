@@ -1,5 +1,6 @@
 import { redis } from "bun";
 import Elysia from "elysia";
+import { swagger } from "@elysiajs/swagger";
 import health from "@routes/health.ts";
 import payments from "@routes/payments.ts";
 import paymentsSummary from "@routes/payments-summary.ts";
@@ -13,6 +14,7 @@ new Elysia()
   .use(payments)
   .use(paymentsSummary)
   .use(purgePayments)
+  .use(swagger())
   .get("reset", async () => {
     await Promise.all([
       new PaymentSqlRepository().purgePayments(),
