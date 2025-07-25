@@ -1,5 +1,5 @@
 _build:
-	docker build -t lucasvsouza28/rinha-bun .
+	docker build -t lucasvsouza28/rinha-bun --no-cache .
 
 build:
 	$(MAKE) _build
@@ -21,6 +21,12 @@ _rinha-up-prd:
 
 rinha-up-prd:
 	$(MAKE) _rinha-up-prd
+
+_rinha-down-prd:
+	docker compose -f docker-compose-prd.yml down -v
+
+rinha-down-prd:
+	$(MAKE) _rinha-down-prd
 
 _rinha-dev:
 	docker compose up --build --watch
