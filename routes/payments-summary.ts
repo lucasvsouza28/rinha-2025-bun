@@ -1,12 +1,10 @@
 import { Elysia, t } from "elysia";
-import { PaymentSqlRepository } from "@repositories/payments";
+import { buildPaymentRepository } from "@repositories/factory";
 
 const paymentsSummary = new Elysia().get(
   "/payments-summary",
   async ({ query: { from, to } }) => {
-    const repo = new PaymentSqlRepository();
-
-    return repo.getPaymentsSummary(from, to);
+    return buildPaymentRepository().getPaymentsSummary(from, to);
   },
   {
     query: t.Object({

@@ -18,17 +18,29 @@ type PaymentSummary = {
   fallback: SummaryItem;
 };
 
+type PaymentSummaryQueryType = {
+  total_request: number;
+  total_amount: number;
+  processor: string;
+};
+
 export interface IPaymentRepository {
   persistPayment(payment: Payment): Promise<void>;
-  getPaymentsSummary(from: Date | undefined, to: Date | undefined): Promise<PaymentSummary>;
+  getPaymentsSummary(
+    from: Date | undefined,
+    to: Date | undefined,
+  ): Promise<PaymentSummary>;
   purgePayments(): Promise<void>;
 }
 
 export class PaymentSqlRepository implements IPaymentRepository {
-  async getPaymentsSummary(from: Date | undefined, to: Date | undefined): Promise<PaymentSummary> {
+  async getPaymentsSummary(
+    from: Date | undefined,
+    to: Date | undefined,
+  ): Promise<PaymentSummary> {
     const fromFilter = sql` AND requested_at >= ${from}`;
     const toFilter = sql` AND requested_at <= ${to}`;
-    const summaries = await sql`
+    const summaries = (await sql`
       select
         count(1) as total_request,
         sum(amount) as total_amount,
@@ -39,9 +51,15 @@ export class PaymentSqlRepository implements IPaymentRepository {
       ${to ? toFilter : sql``}
       group by processor
       order by processor
-      `;
-    const default_summary = summaries?.find((s) => s.processor === "default");
-    const fallback_summary = summaries?.find((s) => s.processor === "fallback");
+      `) as Array<PaymentSummaryQueryType>;
+
+    let default_summary: PaymentSummaryQueryType | undefined,
+      fallback_summary: PaymentSummaryQueryType | undefined;
+
+    for (const r of summaries) {
+      if (r.processor === "default") default_summary = r;
+      else if (r.processor === 'fallback') fallback_summary = r;
+    }
 
     return {
       default: {

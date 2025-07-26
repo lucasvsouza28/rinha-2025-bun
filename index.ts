@@ -6,7 +6,7 @@ import payments from "@routes/payments.ts";
 import paymentsSummary from "@routes/payments-summary.ts";
 import purgePayments from "@routes/purge-payments";
 import { initializeQueue } from "@queues/payment-processing";
-import { PaymentSqlRepository } from "@repositories/payments";
+import { buildPaymentRepository } from "@repositories/factory";
 
 new Elysia()
   .get("/", () => "rinha-bun is running")
@@ -17,7 +17,7 @@ new Elysia()
   .use(swagger())
   .get("reset", async () => {
     await Promise.all([
-      new PaymentSqlRepository().purgePayments(),
+      buildPaymentRepository().purgePayments(),
       redis.del("payment-processor-health:default"),
       redis.del("payment-processor-health:fallback"),
     ]);

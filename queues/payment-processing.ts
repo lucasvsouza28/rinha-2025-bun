@@ -1,8 +1,8 @@
 import { redis } from "bun";
 import Queue from "bull";
 import { PAYMENTS_QUEUE } from "@queues/constants";
-import { PaymentSqlRepository } from "@repositories/payments";
 import type { Payment } from "@repositories/payments";
+import { buildPaymentRepository } from "@repositories/factory";
 
 type JobPayment = Pick<Payment, "correlation_id" | "amount" | "requested_at">;
 type PaymentProcessorType = "default" | "fallback";
@@ -72,7 +72,7 @@ async function persistPayment(
   payment: JobPayment,
   processor: PaymentProcessorType,
 ) {
-  await new PaymentSqlRepository().persistPayment({ ...payment, processor });
+  await buildPaymentRepository().persistPayment({ ...payment, processor });
 
   console.log(`Payment processed via ${processor}: ${payment.correlation_id}`);
 }
