@@ -9,11 +9,20 @@ type PaymentProcessorType = "default" | "fallback";
 type PaymentProcessorItem = { processor: PaymentProcessorType; url: string };
 
 const processors: PaymentProcessorItem[] = [
-  { processor: "default", url: process.env.PAYMENT_PROCESSOR_DEFAULT_URL || "not-set" },
-  { processor: "fallback", url: process.env.PAYMENT_PROCESSOR_FALLBACK_URL || "not-set" },
+  {
+    processor: "default",
+    url: process.env.PAYMENT_PROCESSOR_DEFAULT_URL || "not-set",
+  },
+  {
+    processor: "fallback",
+    url: process.env.PAYMENT_PROCESSOR_FALLBACK_URL || "not-set",
+  },
 ];
 
-const paymentsQueue = new Queue<JobPayment>(PAYMENTS_QUEUE, process.env.REDIS_URL || "");
+const paymentsQueue = new Queue<JobPayment>(
+  PAYMENTS_QUEUE,
+  process.env.REDIS_URL || "",
+);
 
 export function initializeQueue() {
   paymentsQueue.process(async (job, done) => {
@@ -26,7 +35,11 @@ export function initializeQueue() {
         const health = await getProcessorHealth(processor, url);
 
         if (!health.failing) {
-          const processorResponse = await callProcessor(processor, url, job.data);
+          const processorResponse = await callProcessor(
+            processor,
+            url,
+            job.data,
+          );
 
           if (processorResponse.success) {
             await persistPayment(job.data, processor);
@@ -43,7 +56,9 @@ export function initializeQueue() {
       }
 
       // re-queue
-      console.log(`unable to proccess payment ${correlation_id}. Sending back to queue`);
+      console.log(
+        `unable to proccess payment ${correlation_id}. Sending back to queue`,
+      );
       await paymentsQueue.add(job.data);
     } catch (err) {
       console.error(err, `error while processing payment ${correlation_id}`);
@@ -53,7 +68,10 @@ export function initializeQueue() {
   });
 }
 
-async function persistPayment(payment: JobPayment, processor: PaymentProcessorType) {
+async function persistPayment(
+  payment: JobPayment,
+  processor: PaymentProcessorType,
+) {
   await new PaymentSqlRepository().persistPayment({ ...payment, processor });
 
   console.log(`Payment processed via ${processor}: ${payment.correlation_id}`);
@@ -77,12 +95,10 @@ async function getProcessorHealth(
     return JSON.parse(cached) as PaymentProcessorHealth;
   }
 
-  const response = await fetch({
-    url: `${url}/payments/service-health`,
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
+  const response = await fetch(`${url}/payments/service-health`, {
+    // headers: {
+    //   "Content-Type": "application/json",
+    // },
   });
 
   if (!response.ok) {
@@ -102,9 +118,12 @@ async function getProcessorHealth(
   return JSON.parse(json) as PaymentProcessorHealth;
 }
 
-async function callProcessor(processor: PaymentProcessorType, url: string, payment: JobPayment) {
-  const response = await fetch({
-    url: `${url}/payments`,
+async function callProcessor(
+  processor: PaymentProcessorType,
+  url: string,
+  payment: JobPayment,
+) {
+  const response = await fetch(`${url}/payments`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
